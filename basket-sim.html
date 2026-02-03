@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Basket Simulator</title>
+
+    <!-- Collapsible + colored JSON viewer -->
+    <script src="https://unpkg.com/@alenaksu/json-viewer@2.1.0/dist/json-viewer.bundle.js"></script>
+
+    <style>
+      :root {
+        --get: #19a974;
+        --post: #2a7fff;
+        --put: #ff9f1a;
+        --del: #ff4d4f;
+        --bg: #0b1020;
+      }
+
+      body {
+        font-family: system-ui, Arial, sans-serif;
+        margin: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 12px;
+        min-width: 360px;
+        flex: 1;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        color: #444;
+        margin-top: 8px;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #eee;
+        margin: 12px 0;
+      }
+
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+      .btnrow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .split {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .half {
+        flex: 1;
+        min-width: 300px;
+      }
+
+      /* Generic button */
+      button {
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        background: #fafafa;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(0.97);
+      }
+
+      /* Method buttons */
+      .m-btn {
+        color: #fff;
+        border: 1px solid transparent;
+        font-weight: 600;
+      }
+      .m-get {
+        background: var(--get);
+      }
+      .m-post {
+        background: var(--post);
+      }
+      .m-put {
+        background: var(--put);
+        color: #1a1a1a;
+      }
+      .m-del {
+        background: var(--del);
+      }
+      .m-neutral {
+        background: #6b7280;
+      }
+
+      .legend {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        border: 1px solid #ddd;
+        background: #fff;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+      .dot.get {
+        background: var(--get);
+      }
+      .dot.post {
+        background: var(--post);
+      }
+      .dot.put {
+        background: var(--put);
+      }
+      .dot.del {
+        background: var(--del);
+      }
+
+      /* Shipping/payment options */
+      .optlist {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .optbtn {
+        text-align: left;
+        line-height: 1.2;
+      }
+      .optbtn small {
+        display: block;
+        opacity: 0.75;
+        margin-top: 2px;
+      }
+      .optbtn.selected {
+        border-color: #333;
+        background: #eaeaea;
+      }
+
+      /* Summary panel */
+      .summaryGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .summaryItem {
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+      }
+      .summaryItem .k {
+        font-size: 12px;
+        color: #666;
+      }
+      .summaryItem .v {
+        font-size: 18px;
+        font-weight: 800;
+        margin-top: 2px;
+      }
+      .summaryItem .v small {
+        font-size: 12px;
+        font-weight: 700;
+        opacity: 0.7;
+        margin-left: 6px;
+      }
+
+      /* JSON viewer theming */
+      json-viewer {
+        --background-color: var(--bg);
+        --color: #e8e8e8;
+        --font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        --font-size: 0.95rem;
+        --line-height: 1.25rem;
+
+        --string-color: #a3eea0;
+        --number-color: #d19a66;
+        --boolean-color: #4ba7ef;
+        --null-color: #df9cf3;
+        --property-color: #6fb3d2;
+        --preview-color: #deae8f;
+      }
+      .viewerWrap {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #111;
+      }
+      .viewerToolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      /* Checkbox list */
+      .checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .checkrow {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .checkrow input {
+        width: auto;
+      }
+
+      /* Small sections */
+      .sectionTitle {
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h2>Basket Simulator</h2>
+    <div class="muted">Guest mode = no token. User mode = paste JWT (Authorization: Bearer ...). Cookies sent via <code>credentials: "include"</code>.</div>
+
+    <div class="legend">
+      <span class="tag"><span class="dot get"></span>GET</span>
+      <span class="tag"><span class="dot post"></span>POST</span>
+      <span class="tag"><span class="dot put"></span>PUT</span>
+      <span class="tag"><span class="dot del"></span>DELETE</span>
+    </div>
+
+    <div class="row">
+      <!-- LEFT -->
+      <div class="card">
+        <h3>Connection</h3>
+
+        <label>API Base URL</label>
+        <input id="baseUrl" placeholder="http://localhost:3355/api/front/node-basket" />
+
+        <label>JWT Token (optional)</label>
+        <input id="token" placeholder="paste token here (no 'Bearer')" />
+
+        <div class="btnrow">
+          <button class="m-btn m-neutral" id="saveCfg">Save</button>
+          <button class="m-btn m-neutral" id="clearToken">Guest mode</button>
+          <button class="m-btn m-get" id="refreshBasket">Refresh (GET /)</button>
+        </div>
+
+        <hr />
+
+        <h3>Summary</h3>
+        <div class="summaryGrid">
+          <div class="summaryItem">
+            <div class="k">sum</div>
+            <div class="v" id="sumVal">—</div>
+          </div>
+          <div class="summaryItem">
+            <div class="k">net_sum</div>
+            <div class="v" id="netSumVal">—</div>
+          </div>
+          <div class="summaryItem">
+            <div class="k">sum_without_shipping</div>
+            <div class="v" id="sumNoShipVal">—</div>
+          </div>
+          <div class="summaryItem">
+            <div class="k">net_sum_without_shipping</div>
+            <div class="v" id="netNoShipVal">—</div>
+          </div>
+        </div>
+
+        <hr />
+
+        <h3>Cookie / Debug</h3>
+        <div class="btnrow">
+          <button class="m-btn m-post" data-action="clearCookie">POST /debug/clear-cookie</button>
+        </div>
+
+        <hr />
+
+        <h3>Quick actions</h3>
+        <div class="btnrow">
+          <button class="m-btn m-get" data-action="getBasket">GET /</button>
+          <button class="m-btn m-del" data-action="deleteBasket">DELETE /</button>
+          <button class="m-btn m-post" data-action="createOrder">POST /order</button>
+        </div>
+
+        <h4>Predefined products</h4>
+        <div class="btnrow">
+          <button class="m-btn m-post" data-action="addP1">POST / (A)(Id: 577)</button>
+          <button class="m-btn m-post" data-action="addP2">POST / (B)(Id: 580)</button>
+          <button class="m-btn m-post" data-action="addP3">POST / (C)(Id: 590)</button>
+        </div>
+
+        <hr />
+
+        <h3>Shipping & Payment (from basket)</h3>
+        <div class="split">
+          <div class="half">
+            <div class="tag" id="shipSelectedPill">Shipping: (unknown)</div>
+            <div id="shippingButtons" class="optlist"></div>
+          </div>
+          <div class="half">
+            <div class="tag" id="paySelectedPill">Payment: (unknown)</div>
+            <div id="paymentButtons" class="optlist"></div>
+          </div>
+        </div>
+
+        <hr />
+
+        <h3>Quick Update (PUT /)</h3>
+
+        <label>Email</label>
+        <input id="emailField" placeholder="guest@example.com" />
+
+        <label>Comment</label>
+        <textarea id="commentField" rows="3" placeholder="note for admin..."></textarea>
+
+        <label>promo_code (disabled for now)</label>
+        <input id="promoCodeField" placeholder="(soon)" disabled />
+
+        <label>Additional fields</label>
+        <div id="additionalFieldsWrap" class="checklist"></div>
+
+        <div class="split">
+          <div class="half">
+            <label>Shipping address preset</label>
+            <select id="shipAddrSelect"></select>
+            <div class="btnrow">
+              <button class="m-btn m-put" id="applyShipAddr">Apply shipping address</button>
+            </div>
+          </div>
+          <div class="half">
+            <label>Billing address preset</label>
+            <select id="billAddrSelect"></select>
+            <div class="btnrow">
+              <button class="m-btn m-put" id="applyBillAddr">Apply billing address</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btnrow">
+          <button class="m-btn m-put" id="quickUpdate">Send Quick Update (PUT /)</button>
+          <button class="m-btn m-neutral" id="loadFromBasket">Load fields from basket</button>
+        </div>
+
+        <hr />
+
+        <h3>Item update</h3>
+
+        <label>Pick product from basket</label>
+        <select id="productSelect"></select>
+        <div class="muted" id="productSelectHint">Refresh basket first to load products…</div>
+
+        <label>Update item qty</label>
+        <div class="row">
+          <div style="flex: 1">
+            <input id="productId" placeholder="productId (auto-filled from select)" />
+          </div>
+          <div style="flex: 1">
+            <input id="quantity" placeholder="qty (e.g. 2)" />
+          </div>
+        </div>
+        <div class="btnrow">
+          <button class="m-btn m-put" id="updateItem">PUT /:productId</button>
+          <button class="m-btn m-del" id="removeItem">DELETE /:productId</button>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card">
+        <h3>Response viewer</h3>
+        <div class="viewerToolbar">
+          <button class="m-btn m-neutral" id="expandAll">Expand all</button>
+          <button class="m-btn m-neutral" id="collapseAll">Collapse all</button>
+          <button class="m-btn m-neutral" id="copyJson">Copy JSON</button>
+        </div>
+
+        <div class="viewerWrap">
+          <json-viewer id="jsonViewer"></json-viewer>
+        </div>
+
+        <hr />
+
+        <h3>Raw request builder</h3>
+        <label>Method</label>
+        <select id="rawMethod">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+        </select>
+
+        <label>Path (relative to base URL)</label>
+        <input id="rawPath" placeholder="/" value="/" />
+
+        <label>JSON Body (optional)</label>
+        <textarea id="rawBody" rows="8">{}</textarea>
+
+        <div class="btnrow">
+          <button class="m-btn m-neutral" id="sendRaw">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const LS_BASE = 'basketSim.baseUrl';
+      const LS_TOKEN = 'basketSim.token';
+
+      let lastShown = null; // wrapper shown in viewer
+      let lastBasket = null; // last basket data from GET /
+
+      // API expects arrays even for one product
+      // Edit IDs to match your DB
+      const PREDEFINED = {
+        A: [{ product_id: 577, quantity: 1 }],
+        B: [{ product_id: 580, quantity: 2 }],
+        C: [{ product_id: 590, quantity: 3 }],
+      };
+
+      // Address presets (adjust as needed)
+      const ADDRESS_PRESETS = [
+        {
+          id: 'none',
+          label: '— do not change —',
+          data: null,
+        },
+        {
+          id: 'home_pl',
+          label: 'Home (PL) – Jan Kowalski, Warszawa',
+          data: {
+            firstname: 'Jan',
+            surname: 'Kowalski',
+            lastname: 'Kowalski',
+            street1: 'Kwiatowa 12/3',
+            street_1: 'Kwiatowa 12/3',
+            zip_code: '00-001',
+            city: 'Warszawa',
+            country: 'PL',
+            phone: '+48 600 000 000',
+            tax_id: null,
+            company: null,
+            email: null,
+          },
+        },
+        {
+          id: 'company_pl',
+          label: 'Company (PL) – ACME Sp. z o.o.',
+          data: {
+            firstname: 'Anna',
+            surname: 'Nowak',
+            lastname: 'Nowak',
+            street1: 'Prosta 1',
+            street_1: 'Prosta 1',
+            zip_code: '00-950',
+            city: 'Warszawa',
+            country: 'PL',
+            phone: '+48 700 000 000',
+            company: 'ACME Sp. z o.o.',
+            tax_id: '5250000000',
+            email: null,
+          },
+        },
+      ];
+
+      const ADDITIONAL_FIELDS_META = [
+        { field_id: 3, translation: { name: 'Akceptacja regulaminu' } },
+        { field_id: 23, translation: { name: 'marketing - zgoda telefon [przedsięborca]' } },
+        { field_id: 9, translation: { name: 'Obowiązek zapłaty' } },
+      ];
+
+      function loadCfg() {
+        $('baseUrl').value = localStorage.getItem(LS_BASE) || 'http://localhost:3355/api/front/node-basket';
+        $('token').value = localStorage.getItem(LS_TOKEN) || '';
+      }
+
+      function saveCfg() {
+        localStorage.setItem(LS_BASE, $('baseUrl').value.trim());
+        localStorage.setItem(LS_TOKEN, $('token').value.trim());
+        show({ meta: { note: 'Saved config' }, request: null, response: { ok: true, status: 200, data: 'Saved.' } });
+      }
+
+      function normalizeAddProductsPayload(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (payload && typeof payload === 'object') return [payload];
+        throw new Error('Invalid payload for add products');
+      }
+
+      function isBasket(obj) {
+        return obj && typeof obj === 'object' && obj._id && Array.isArray(obj.products);
+      }
+
+      function show(wrapper) {
+        lastShown = wrapper;
+        const viewer = $('jsonViewer');
+        viewer.data = wrapper;
+        try {
+          viewer.collapseAll();
+        } catch {}
+        try {
+          viewer.expand('response');
+        } catch {}
+      }
+
+      function escapeHtml(str) {
+        return String(str).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+      }
+
+      async function request(path, { method = 'GET', body } = {}) {
+        const baseUrl = $('baseUrl').value.trim().replace(/\/+$/, '');
+        const url = baseUrl + path;
+
+        const token = $('token').value.trim();
+        const headers = {};
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const res = await fetch(url, {
+          method,
+          credentials: 'include',
+          headers,
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+        });
+
+        const text = await res.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch {
+          data = text;
+        }
+
+        return {
+          meta: { ts: new Date().toISOString() },
+          request: { method, url, body: body ?? null },
+          response: { ok: res.ok, status: res.status, data },
+        };
+      }
+
+      function money(val, cur) {
+        if (val === null || val === undefined || Number.isNaN(Number(val))) return '—';
+        const n = Number(val);
+        return `${n.toFixed(2)}${cur ? ` ${cur}` : ''}`;
+      }
+
+      function renderSummary(basket) {
+        const s = basket?.summary || null;
+        const cur = s?.currency || '';
+
+        $('sumVal').innerHTML = `${money(s?.sum, cur)}`;
+        $('netSumVal').innerHTML = `${money(s?.net_sum, cur)}`;
+        $('sumNoShipVal').innerHTML = `${money(s?.sum_without_shipping, cur)}`;
+        $('netNoShipVal').innerHTML = `${money(s?.net_sum_without_shipping, cur)}`;
+      }
+
+      function getSelectedShippingId(basket) {
+        const s = basket?.shipping?.find((x) => x.selected);
+        return s?.shipping_id ?? null;
+      }
+
+      function getSelectedPaymentId(basket) {
+        const p = basket?.payment?.find((x) => x.selected);
+        return p?.payment_id ?? null;
+      }
+
+      // basket.additional_fields may be [] or [{id,value}]
+      function getAdditionalFieldsMap(basket) {
+        const map = {};
+        const arr = basket?.additional_fields;
+        if (Array.isArray(arr)) {
+          for (const it of arr) {
+            if (it && (it.id !== undefined || it.field_id !== undefined)) {
+              const id = Number(it.id ?? it.field_id);
+              map[id] = String(it.value ?? it.val ?? '0');
+            }
+          }
+        }
+        return map;
+      }
+
+      function renderAdditionalFields(basket) {
+        const current = getAdditionalFieldsMap(basket);
+
+        const wrap = $('additionalFieldsWrap');
+        wrap.innerHTML = '';
+        for (const f of ADDITIONAL_FIELDS_META) {
+          const id = f.field_id;
+          const label = f.translation?.name || String(id);
+
+          const row = document.createElement('label');
+          row.className = 'checkrow';
+          row.innerHTML = `
+            <input type="checkbox" id="af_${id}" />
+            <span>${escapeHtml(label)} <span class="muted">(field_id: ${id})</span></span>
+          `;
+
+          wrap.appendChild(row);
+
+          const cb = $('af_' + id);
+          cb.checked = current[id] === '1';
+        }
+      }
+
+      function populateAddressSelect(selectEl) {
+        selectEl.innerHTML = '';
+        for (const p of ADDRESS_PRESETS) {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.label;
+          selectEl.appendChild(opt);
+        }
+      }
+
+      function findAddressPreset(id) {
+        return ADDRESS_PRESETS.find((x) => x.id === id) || ADDRESS_PRESETS[0];
+      }
+
+      function setPills(basket) {
+        const sid = getSelectedShippingId(basket);
+        const pid = getSelectedPaymentId(basket);
+        $('shipSelectedPill').textContent = `Shipping: ${sid ?? '(none selected)'}`;
+        $('paySelectedPill').textContent = `Payment: ${pid ?? '(none selected)'}`;
+      }
+
+      function clearOptionsUI() {
+        $('shippingButtons').innerHTML = '';
+        $('paymentButtons').innerHTML = '';
+        $('shipSelectedPill').textContent = 'Shipping: (unknown)';
+        $('paySelectedPill').textContent = 'Payment: (unknown)';
+      }
+
+      function renderOptions(basket) {
+        if (!basket) return clearOptionsUI();
+
+        setPills(basket);
+
+        // Shipping list -> clicking calls PUT /
+        const shipWrap = $('shippingButtons');
+        shipWrap.innerHTML = '';
+        (basket.shipping || []).forEach((s) => {
+          const btn = document.createElement('button');
+          btn.className = 'optbtn m-btn m-put' + (s.selected ? ' selected' : '');
+          const cost = s.calculated_shipping_cost !== undefined ? `${s.calculated_shipping_cost} PLN` : '';
+          btn.innerHTML = `
+            <div><b>${s.shipping_id}</b> • ${escapeHtml(s.name || '')}</div>
+            <small>${escapeHtml(s.description || '')}${cost ? ` • cost: ${cost}` : ''}</small>
+          `;
+          btn.onclick = () => selectShipping(s.shipping_id);
+          shipWrap.appendChild(btn);
+        });
+
+        // Payment list -> clicking calls PUT /
+        const payWrap = $('paymentButtons');
+        payWrap.innerHTML = '';
+        (basket.payment || []).forEach((p) => {
+          const btn = document.createElement('button');
+          btn.className = 'optbtn m-btn m-put' + (p.selected ? ' selected' : '');
+          const online = p.online_payment ? 'online' : 'offline';
+          btn.innerHTML = `
+            <div><b>${p.payment_id}</b> • ${escapeHtml(p.title || '')}</div>
+            <small>${online}${p.description ? ` • ${escapeHtml(p.description)}` : ''}</small>
+          `;
+          btn.onclick = () => selectPayment(p.payment_id);
+          payWrap.appendChild(btn);
+        });
+      }
+
+      function populateProductSelect(basket) {
+        const sel = $('productSelect');
+        const hint = $('productSelectHint');
+
+        sel.innerHTML = '';
+
+        if (!basket || !Array.isArray(basket.products) || basket.products.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = '— no products in basket —';
+          sel.appendChild(opt);
+          hint.textContent = 'No products to select.';
+          return;
+        }
+
+        hint.textContent = 'Select a product to auto-fill productId & quantity.';
+
+        const ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = '— choose product —';
+        sel.appendChild(ph);
+
+        for (const p of basket.products) {
+          const opt = document.createElement('option');
+          opt.value = String(p.product_id);
+
+          const qty = p.quantity ?? 0;
+          const code = p.code ? ` • ${p.code}` : '';
+          const name = p.name ? p.name : '(no name)';
+          opt.textContent = `${p.product_id} • qty:${qty}${code} • ${name}`;
+          sel.appendChild(opt);
+        }
+      }
+
+      function onProductSelected() {
+        const productIdStr = $('productSelect').value;
+        if (!productIdStr) return;
+
+        const productId = Number(productIdStr);
+        $('productId').value = String(productId);
+
+        const p = lastBasket?.products?.find((x) => Number(x.product_id) === productId);
+        if (p) $('quantity').value = String(p.quantity ?? 1);
+      }
+
+      async function refreshBasket() {
+        const r = await request('/', { method: 'GET' });
+        show(r);
+
+        if (r.response.ok && isBasket(r.response.data)) {
+          lastBasket = r.response.data;
+          renderOptions(lastBasket);
+          renderAdditionalFields(lastBasket);
+          renderSummary(lastBasket);
+          populateProductSelect(lastBasket);
+        } else {
+          lastBasket = null;
+          clearOptionsUI();
+          renderAdditionalFields(null);
+          renderSummary(null);
+          populateProductSelect(null);
+        }
+        return r;
+      }
+
+      // Defensive: include the "other" selected ID too so updates don’t accidentally clear it
+      async function selectShipping(shippingId) {
+        const currentPaymentId = getSelectedPaymentId(lastBasket);
+        const body = { shipping_id: Number(shippingId) };
+        if (currentPaymentId != null) body.payment_id = Number(currentPaymentId);
+
+        const r = await request('/', { method: 'PUT', body });
+        show(r);
+        await refreshBasket();
+      }
+
+      async function selectPayment(paymentId) {
+        const currentShippingId = getSelectedShippingId(lastBasket);
+        const body = { payment_id: Number(paymentId) };
+        if (currentShippingId != null) body.shipping_id = Number(currentShippingId);
+
+        const r = await request('/', { method: 'PUT', body });
+        show(r);
+        await refreshBasket();
+      }
+
+      function buildAdditionalFieldsPayloadFromUI() {
+        const obj = {};
+        for (const f of ADDITIONAL_FIELDS_META) {
+          const id = f.field_id;
+          const cb = $('af_' + id);
+          obj[String(id)] = cb && cb.checked ? '1' : '0';
+        }
+        return obj;
+      }
+
+      function buildQuickUpdateBody({ includeAddress = false, addressKind = null } = {}) {
+        const body = {};
+
+        // Use basket selections (streamlined)
+        const sid = getSelectedShippingId(lastBasket);
+        const pid = getSelectedPaymentId(lastBasket);
+        if (sid != null) body.shipping_id = Number(sid);
+        if (pid != null) body.payment_id = Number(pid);
+
+        const email = $('emailField').value.trim();
+        const comment = $('commentField').value.trim();
+        if (email) body.email = email;
+        if (comment) body.comment = comment;
+
+        // Always send the 3 checkbox fields
+        body.additional_fields = buildAdditionalFieldsPayloadFromUI();
+
+        // promo_code is disabled for now, but keep placeholder logic ready:
+        // const promo = $('promoCodeField').value.trim();
+        // if (promo) body.promo_code = promo;
+
+        if (includeAddress && addressKind) {
+          if (addressKind === 'shipping') {
+            const preset = findAddressPreset($('shipAddrSelect').value);
+            if (preset.data) body.shipping_address = preset.data;
+          }
+          if (addressKind === 'billing') {
+            const preset = findAddressPreset($('billAddrSelect').value);
+            if (preset.data) body.billing_address = preset.data;
+          }
+        }
+
+        return body;
+      }
+
+      function loadFieldsFromBasket() {
+        if (!lastBasket) return;
+
+        if (lastBasket.email && !$('emailField').value.trim()) {
+          $('emailField').value = lastBasket.email;
+        }
+
+        if (lastBasket.notes && !$('commentField').value.trim()) {
+          $('commentField').value = lastBasket.notes;
+        }
+
+        renderAdditionalFields(lastBasket);
+      }
+
+      async function run(action) {
+        let r;
+
+        if (action === 'getBasket') return refreshBasket();
+
+        if (action === 'clearCookie') r = await request('/debug/clear-cookie', { method: 'POST' });
+        if (action === 'deleteBasket') r = await request('/', { method: 'DELETE' });
+        if (action === 'createOrder') r = await request('/order', { method: 'POST' });
+
+        if (action === 'addP1') r = await request('/', { method: 'POST', body: normalizeAddProductsPayload(PREDEFINED.A) });
+        if (action === 'addP2') r = await request('/', { method: 'POST', body: normalizeAddProductsPayload(PREDEFINED.B) });
+        if (action === 'addP3') r = await request('/', { method: 'POST', body: normalizeAddProductsPayload(PREDEFINED.C) });
+
+        show(r || { request: null, response: { ok: false, status: 0, data: 'Unknown action' } });
+        await refreshBasket();
+      }
+
+      // Wiring
+      $('saveCfg').onclick = saveCfg;
+      $('clearToken').onclick = () => {
+        $('token').value = '';
+        saveCfg();
+      };
+      $('refreshBasket').onclick = refreshBasket;
+
+      document.querySelectorAll('button[data-action]').forEach((btn) => {
+        btn.onclick = () => run(btn.dataset.action).catch((e) => show({ request: null, response: { ok: false, status: 0, data: String(e) } }));
+      });
+
+      $('productSelect').onchange = onProductSelected;
+
+      $('updateItem').onclick = async () => {
+        const productId = Number($('productId').value);
+        const quantity = Number($('quantity').value);
+        if (!productId || quantity < 0 || Number.isNaN(quantity)) return show({ request: null, response: { ok: false, status: 0, data: 'Provide productId and non-negative quantity' } });
+
+        const r = await request('/' + productId, { method: 'PUT', body: { quantity } });
+        show(r);
+        await refreshBasket();
+      };
+
+      $('removeItem').onclick = async () => {
+        const productId = Number($('productId').value);
+        if (!productId) return show({ request: null, response: { ok: false, status: 0, data: 'Provide productId' } });
+
+        const r = await request('/' + productId, { method: 'DELETE' });
+        show(r);
+        await refreshBasket();
+      };
+
+      $('quickUpdate').onclick = async () => {
+        const body = buildQuickUpdateBody();
+        const r = await request('/', { method: 'PUT', body });
+        show(r);
+        await refreshBasket();
+      };
+
+      $('applyShipAddr').onclick = async () => {
+        const body = buildQuickUpdateBody({ includeAddress: true, addressKind: 'shipping' });
+        const r = await request('/', { method: 'PUT', body });
+        show(r);
+        await refreshBasket();
+      };
+
+      $('applyBillAddr').onclick = async () => {
+        const body = buildQuickUpdateBody({ includeAddress: true, addressKind: 'billing' });
+        const r = await request('/', { method: 'PUT', body });
+        show(r);
+        await refreshBasket();
+      };
+
+      $('loadFromBasket').onclick = loadFieldsFromBasket;
+
+      // Viewer controls
+      $('expandAll').onclick = () => {
+        try {
+          $('jsonViewer').expandAll();
+        } catch {}
+      };
+      $('collapseAll').onclick = () => {
+        try {
+          $('jsonViewer').collapseAll();
+        } catch {}
+      };
+      $('copyJson').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(lastShown, null, 2));
+          show({ meta: { note: 'Copied' }, request: null, response: { ok: true, status: 200, data: 'Copied last response JSON to clipboard.' } });
+        } catch (e) {
+          show({ request: null, response: { ok: false, status: 0, data: 'Clipboard copy failed: ' + String(e) } });
+        }
+      };
+
+      // Raw request builder
+      $('sendRaw').onclick = async () => {
+        const method = $('rawMethod').value;
+        const path = $('rawPath').value.trim() || '/';
+        let body;
+        const raw = $('rawBody').value.trim();
+
+        if (method !== 'GET' && method !== 'DELETE') {
+          try {
+            body = raw ? JSON.parse(raw) : {};
+          } catch {
+            return show({ request: null, response: { ok: false, status: 0, data: 'Invalid JSON body' } });
+          }
+        }
+
+        const r = await request(path.startsWith('/') ? path : '/' + path, { method, body });
+        show(r);
+      };
+
+      // Init
+      loadCfg();
+      populateAddressSelect($('shipAddrSelect'));
+      populateAddressSelect($('billAddrSelect'));
+
+      populateProductSelect(null);
+      renderSummary(null);
+      renderAdditionalFields(null);
+
+      show({
+        meta: { note: 'Ready' },
+        request: null,
+        response: { ok: true, status: 200, data: 'Click “Refresh (GET /)” or add a predefined product.' },
+      });
+    </script>
+  </body>
+</html>
